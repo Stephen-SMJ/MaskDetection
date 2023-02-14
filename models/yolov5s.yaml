@@ -1,0 +1,51 @@
+# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+
+#yolov5中使用不同的depth_multiple和width_multiple来控制网络结构大小（每个配置文件的结构是一样的）
+
+# Parameters
+nc: 3  # number of classes
+depth_multiple: 0.33  # model depth multiple     depth_multiple*number向上取整之后是实际的个数
+width_multiple: 0.50  # layer channel multiple    width_multiple*output_channel向上取整之后是实际的输出channel数
+anchors:  #总共三组anchor，每组三个
+  - [10,13, 16,30, 33,23]  # P3/8    第一个feature上的anchor大小，这个feature是原图的1/8的大小 感受野小，适合小目标检测，所以anchor也小
+  - [30,61, 62,45, 59,119]  # P4/16 第二个feature上的anchor大小，这个feature是原图的1/16的大小
+  - [116,90, 156,198, 373,326]  # P5/32  第三个feature上的anchor大小，这个feature是原图的32的大小 感受野大，检测大目标，anchor大
+
+# YOLOv5 v6.0 backbone
+backbone:
+  # [from, number, module, args]
+  #-1表示来自上一层 | 1表示卷积层个数：1*depth_multiple向上取整=1 | [64, 6, 2, 2] channel=64*0.5=32，6代表6*6的卷积核，padding2，stride2
+  [[-1, 1, Conv, [64, 6, 2, 2]],  # 0-P1/2  第0层，使输出的feature map变为原图的1/2
+   [-1, 1, Conv, [128, 3, 2]],  # 1-P2/4
+   [-1, 3, C3, [128]],  #c3不改变channel
+   [-1, 1, Conv, [256, 3, 2]],  # 3-P3/8
+   [-1, 6, C3, [256]],
+   [-1, 1, Conv, [512, 3, 2]],  # 5-P4/16
+   [-1, 9, C3, [512]],
+   [-1, 1, Conv, [1024, 3, 2]],  # 7-P5/32
+   [-1, 3, C3, [1024]],
+   [-1, 1, SPPF, [1024, 5]],  # 9 特征金字塔
+  ]
+
+# YOLOv5 v6.0 head
+head:
+  [[-1, 1, Conv, [512, 1, 1]],  #bottle neck
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [[-1, 6], 1, Concat, [1]],  # cat backbone P4    upsample与backbone的p4的feature融合
+   [-1, 3, C3, [512, False]],  # 13
+
+   [-1, 1, Conv, [256, 1, 1]],
+   [-1, 1, nn.Upsample, [None, 2, 'nearest']],
+   [[-1, 4], 1, Concat, [1]],  # cat backbone P3    upsample与之前的p3的feature融合
+   [-1, 3, C3, [256, False]],  # 17 (P3/8-small)
+
+   [-1, 1, Conv, [256, 3, 2]],
+   [[-1, 14], 1, Concat, [1]],  # cat head P4       与head的p4的feature融合
+   [-1, 3, C3, [512, False]],  # 20 (P4/16-medium)
+
+   [-1, 1, Conv, [512, 3, 2]],
+   [[-1, 10], 1, Concat, [1]],  # cat head P5       与head的p5的feature融合
+   [-1, 3, C3, [1024, False]],  # 23 (P5/32-large)
+
+   [[17, 20, 23], 1, Detect, [nc, anchors]],  # Detect(P3, P4, P5) 在17 20 23层接detect层
+  ]

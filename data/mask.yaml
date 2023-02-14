@@ -1,0 +1,6 @@
+#数据集的路径，推荐用绝对路径
+train: S:/pythonProjects/DSA/MaskDetection2/DataSets/train.txt
+val: S:/pythonProjects/DSA/MaskDetection2/DataSets/val.txt
+test: S:/pythonProjects/DSA/MaskDetection2/DataSets/test.txt
+nc: 3 #分类个数
+names: ['with_mask;', 'without_mask', 'mask_weared_incorrect']  #标签
